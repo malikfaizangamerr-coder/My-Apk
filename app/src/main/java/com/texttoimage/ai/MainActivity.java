@@ -13,6 +13,7 @@ import com.unity3d.ads.IUnityAdsShowListener;
 import com.unity3d.ads.UnityAds;
 import com.unity3d.ads.UnityAdsLoadOptions;
 import com.unity3d.ads.UnityAdsShowOptions;
+import com.unity3d.ads.UnityAdsShowCompletionState;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -97,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Show Interstitial Ad - Unity Ads v4+ Compatible
-     * Note: v4+ removed UnityAdsFinishState, now only onUnityAdsShowComplete
+     * Note: v4+ requires onUnityAdsShowComplete with UnityAdsShowCompletionState parameter
      */
     private void showInterstitialAd() {
         isAdShowing = true;
@@ -121,8 +122,8 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onUnityAdsShowComplete(String placementId) {
-                // v4+ API - No state parameter, just onUnityAdsShowComplete
+            public void onUnityAdsShowComplete(String placementId, UnityAdsShowCompletionState state) {
+                // v4+ API - Check completion state if needed
                 isAdShowing = false;
                 Toast.makeText(MainActivity.this, "Ad Completed!", Toast.LENGTH_SHORT).show();
                 // Load next ad after a delay to avoid rapid loading
