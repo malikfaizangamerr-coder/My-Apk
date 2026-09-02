@@ -3,7 +3,6 @@
     package="com.texttoimage.ai">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -13,7 +12,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
 
-        <!-- Splash Activity -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
@@ -24,11 +22,8 @@
             </intent-filter>
         </activity>
 
-        <!-- Main Activity - exported="true" karein -->
         <activity
             android:name=".MainActivity"
-            android:exported="true" />  <!-- ✅ CHANGE -->
-
+            android:exported="true" />
     </application>
-
 </manifest>
