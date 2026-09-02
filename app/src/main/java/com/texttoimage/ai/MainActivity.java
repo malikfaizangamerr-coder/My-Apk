@@ -6,13 +6,13 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
-// ✅ Unity Ads v4+ Imports
+// ✅ Unity Ads v4+ Imports (CORRECT)
+import com.unity3d.ads.IUnityAdsInitializationListener;
+import com.unity3d.ads.IUnityAdsLoadListener;
+import com.unity3d.ads.IUnityAdsShowListener;
 import com.unity3d.ads.UnityAds;
-import com.unity3d.ads.mediation.IUnityAdsInitializationListener;
-import com.unity3d.ads.mediation.IUnityAdsLoadListener;
-import com.unity3d.ads.mediation.IUnityAdsShowListener;
-import com.unity3d.ads.mediation.UnityAdsLoadOptions;
-import com.unity3d.ads.mediation.UnityAdsShowOptions;
+import com.unity3d.ads.UnityAdsLoadOptions;
+import com.unity3d.ads.UnityAdsShowOptions;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -27,12 +27,23 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ✅ Unity Ads v4+ Initialization with Listener
+        // ✅ Unity Ads v4+ Initialization
+        initializeUnityAds();
+
+        // WebView Setup
+        setupWebView();
+    }
+
+    /**
+     * Initialize Unity Ads
+     */
+    private void initializeUnityAds() {
         UnityAds.initialize(this, GAME_ID, false, new IUnityAdsInitializationListener() {
             @Override
             public void onInitializationComplete() {
-                // SDK initialized successfully
                 Toast.makeText(MainActivity.this, "Unity Ads Initialized", Toast.LENGTH_SHORT).show();
+                // Load ad after initialization
+                loadInterstitialAd();
             }
 
             @Override
@@ -40,14 +51,18 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Init Failed: " + message, Toast.LENGTH_SHORT).show();
             }
         });
+    }
 
-        // WebView Setup
+    /**
+     * Setup WebView
+     */
+    private void setupWebView() {
         webView = findViewById(R.id.webView);
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // ✅ Page load hone ke baad Ad Load karein
+                // Load ad after page finish
                 loadInterstitialAd();
             }
         });
@@ -56,49 +71,56 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
-    // ✅ Ad Load Method (v4+)
+    /**
+     * Load Interstitial Ad
+     */
     private void loadInterstitialAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
+        
         UnityAds.load(INTERSTITIAL_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
             @Override
             public void onUnityAdsAdLoaded(String placementId) {
-                // Ad load ho gayi, ab show karein
+                Toast.makeText(MainActivity.this, "Ad Loaded", Toast.LENGTH_SHORT).show();
                 showInterstitialAd();
             }
 
             @Override
             public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
-                Toast.makeText(MainActivity.this, "Load Failed: " + message, Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // ✅ Ad Show Method (v4+)
+    /**
+     * Show Interstitial Ad
+     */
     private void showInterstitialAd() {
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
-        UnityAds.show(this, INTERSTITIAL_PLACEMENT, showOptions, new IUnityAdsShowListener() {
+        
+        UnityAds.show(MainActivity.this, INTERSTITIAL_PLACEMENT, showOptions, new IUnityAdsShowListener() {
             @Override
             public void onUnityAdsShowFailure(String placementId, UnityAds.UnityAdsShowError error, String message) {
-                Toast.makeText(MainActivity.this, "Show Failed: " + message, Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Ad Show Failed: " + message, Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onUnityAdsShowStart(String placementId) {
-                // Ad start ho gayi
+                // Ad show start
             }
 
             @Override
             public void onUnityAdsShowClick(String placementId) {
-                // User ne ad par click kiya
+                // User clicked on ad
             }
 
             @Override
             public void onUnityAdsShowComplete(String placementId, UnityAds.UnityAdsFinishState state) {
-                // Ad complete ho gayi
                 if (state == UnityAds.UnityAdsFinishState.COMPLETED) {
                     Toast.makeText(MainActivity.this, "Ad Completed!", Toast.LENGTH_SHORT).show();
+                } else if (state == UnityAds.UnityAdsFinishState.SKIPPED) {
+                    Toast.makeText(MainActivity.this, "Ad Skipped", Toast.LENGTH_SHORT).show();
                 }
-                // Agli ad load karein
+                // Load next ad
                 loadInterstitialAd();
             }
         });
@@ -106,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
