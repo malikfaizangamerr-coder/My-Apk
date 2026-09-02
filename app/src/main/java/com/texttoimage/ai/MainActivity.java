@@ -1,13 +1,13 @@
 package com.texttoimage.ai;
 
 import android.os.Bundle;
-import android.webkit.WebView;          // ✅ Yeh sahi hai
-import android.webkit.WebViewClient;    // ✅ Yeh sahi hai
-import androidx.appcompat.app.AppCompatActivity;  // ✅ Yeh sahi hai
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    private WebView webView;  // ✅ Variable declare karna zaroori hai!
+    private WebView webView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -19,7 +19,6 @@ public class MainActivity extends AppCompatActivity {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
 
-        // 🔥 APNI WEBSITE KA URL
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
