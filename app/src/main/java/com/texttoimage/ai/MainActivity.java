@@ -18,7 +18,6 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
     // ✅ Unity Ads IDs
     private final String GAME_ID = "6184303";
     private final String INTERSTITIAL_PLACEMENT = "Interstitial_Android";
-    private final String REWARDED_PLACEMENT = "Rewarded_Android";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,7 +32,7 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
         webView.setWebViewClient(new WebViewClient());
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
-        webView.loadUrl("https://perchance.org/ai-text-to-image-gallery");
+        webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
 
         // ✅ WebView load hone ke baad Interstitial Ad Show
         webView.setWebViewClient(new WebViewClient() {
