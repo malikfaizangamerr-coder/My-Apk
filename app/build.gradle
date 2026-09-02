@@ -3,15 +3,15 @@ plugins {
 }
 
 android {
-    namespace 'com.yourname.mywebapp'
+    namespace 'com.texttoimage.ai'      // ✅ Naya package name
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.yourname.mywebapp'
+        applicationId 'com.texttoimage.ai'  // ✅ Naya package name
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 8                       // ✅ 8
+        versionName "12"                    // ✅ 12
     }
 
     buildTypes {
