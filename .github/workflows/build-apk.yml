@@ -19,13 +19,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+    # 🔑 Sab se zaroori step - gradlew executable banana
+    - name: Make gradlew executable
+      run: chmod +x gradlew
     
-    - name: Clean Build with Info
-      run: |
-        gradle clean --info
-        gradle assembleDebug --stacktrace --info
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
