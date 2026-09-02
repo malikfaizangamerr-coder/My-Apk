@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
+    // ✅ WebView variable declare karein
     private WebView webView;
 
     @Override
@@ -14,12 +15,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // ✅ WebView initialize karein
         webView = findViewById(R.id.webView);
         webView.setWebViewClient(new WebViewClient());
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
 
-        webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
+        webView.loadUrl("https://perchance.org/ai-text-to-image-gallery");
     }
 
     @Override
