@@ -26,7 +26,7 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
         setContentView(R.layout.activity_main);
 
         // ✅ Unity Ads Initialize
-        UnityAds.initialize(this, GAME_ID, this, true);
+        UnityAds.initialize(this, GAME_ID, true);
 
         // WebView Setup
         webView = findViewById(R.id.webView);
