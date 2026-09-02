@@ -6,7 +6,7 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
-// ✅ Unity Ads v4+ Imports (CORRECT)
+// ✅ Unity Ads v4+ Correct Imports
 import com.unity3d.ads.IUnityAdsInitializationListener;
 import com.unity3d.ads.IUnityAdsLoadListener;
 import com.unity3d.ads.IUnityAdsShowListener;
@@ -17,6 +17,7 @@ import com.unity3d.ads.UnityAdsShowOptions;
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
+    private boolean isAdShowing = false;
 
     // ✅ Unity Ads IDs
     private final String GAME_ID = "6184303";
@@ -27,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ✅ Unity Ads v4+ Initialization
+        // ✅ Initialize Unity Ads
         initializeUnityAds();
 
         // WebView Setup
@@ -35,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Initialize Unity Ads
+     * Initialize Unity Ads v4+
      */
     private void initializeUnityAds() {
         UnityAds.initialize(this, GAME_ID, false, new IUnityAdsInitializationListener() {
@@ -62,65 +63,69 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Load ad after page finish
-                loadInterstitialAd();
+                // Load ad after page finish (but only if not already showing)
+                if (!isAdShowing) {
+                    loadInterstitialAd();
+                }
             }
         });
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
+        webView.getSettings().setDatabaseEnabled(true);
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
     /**
-     * Load Interstitial Ad
+     * Load Interstitial Ad - Unity Ads v4+ Compatible
      */
     private void loadInterstitialAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
-        
+
         UnityAds.load(INTERSTITIAL_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
             @Override
             public void onUnityAdsAdLoaded(String placementId) {
-                Toast.makeText(MainActivity.this, "Ad Loaded", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Ad Loaded Successfully", Toast.LENGTH_SHORT).show();
                 showInterstitialAd();
             }
 
             @Override
-            public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
+            public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     /**
-     * Show Interstitial Ad
+     * Show Interstitial Ad - Unity Ads v4+ Compatible
+     * Note: v4+ removed UnityAdsFinishState, now only onUnityAdsShowComplete
      */
     private void showInterstitialAd() {
+        isAdShowing = true;
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
-        
+
         UnityAds.show(MainActivity.this, INTERSTITIAL_PLACEMENT, showOptions, new IUnityAdsShowListener() {
             @Override
             public void onUnityAdsShowFailure(String placementId, UnityAds.UnityAdsShowError error, String message) {
+                isAdShowing = false;
                 Toast.makeText(MainActivity.this, "Ad Show Failed: " + message, Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onUnityAdsShowStart(String placementId) {
-                // Ad show start
+                Toast.makeText(MainActivity.this, "Ad Started", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onUnityAdsShowClick(String placementId) {
-                // User clicked on ad
+                Toast.makeText(MainActivity.this, "Ad Clicked", Toast.LENGTH_SHORT).show();
             }
 
             @Override
-            public void onUnityAdsShowComplete(String placementId, UnityAds.UnityAdsFinishState state) {
-                if (state == UnityAds.UnityAdsFinishState.COMPLETED) {
-                    Toast.makeText(MainActivity.this, "Ad Completed!", Toast.LENGTH_SHORT).show();
-                } else if (state == UnityAds.UnityAdsFinishState.SKIPPED) {
-                    Toast.makeText(MainActivity.this, "Ad Skipped", Toast.LENGTH_SHORT).show();
-                }
-                // Load next ad
+            public void onUnityAdsShowComplete(String placementId) {
+                // v4+ API - No state parameter, just onUnityAdsShowComplete
+                isAdShowing = false;
+                Toast.makeText(MainActivity.this, "Ad Completed!", Toast.LENGTH_SHORT).show();
+                // Load next ad after a delay to avoid rapid loading
                 loadInterstitialAd();
             }
         });
