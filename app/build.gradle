@@ -27,6 +27,6 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     
-    // ✅ Unity Ads SDK (Latest stable version for Android)
+    // ✅ Unity Ads SDK - Required for interstitial ads
     implementation 'com.unity3d.ads:unity-ads:4.12.0'
 }
