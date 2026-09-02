@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
         webView.setWebViewClient(new WebViewClient());
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
-        webView.loadUrl("https://perchance.org/ai-text-to-image-gallery");
+        webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
 
         // ✅ WebView load hone ke baad Interstitial Ad Show Karein
         webView.setWebViewClient(new WebViewClient() {
