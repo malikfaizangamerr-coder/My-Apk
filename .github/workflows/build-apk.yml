@@ -1,4 +1,4 @@
-name: Build APK
+.name: Build APK
 
 on:
   push:
@@ -19,12 +19,16 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
-    # 🔑 Sab se zaroori step - gradlew executable banana
-    - name: Make gradlew executable
-      run: chmod +x gradlew
+    # ✅ Gradle Direct Install (Wrapper ke baghair)
+    - name: Install Gradle
+      run: |
+        wget https://services.gradle.org/distributions/gradle-8.10-bin.zip
+        unzip gradle-8.10-bin.zip
+        echo "$PWD/gradle-8.10/bin" >> $GITHUB_PATH
     
+    # ✅ Direct Gradle Command (./gradlew nahi)
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace
+      run: gradle assembleDebug --stacktrace
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
