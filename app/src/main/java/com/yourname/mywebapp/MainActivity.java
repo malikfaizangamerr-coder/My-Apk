@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient());
 
         // *** CHANGE THIS URL TO YOUR WEBSITE ***
-        webView.loadUrl("https://your-website.com");
+        webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
     // Back button navigation
