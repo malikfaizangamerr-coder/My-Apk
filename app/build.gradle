@@ -3,15 +3,15 @@ plugins {
 }
 
 android {
-    namespace 'com.texttoimage.ai'      // ✅ Naya package name
+    namespace 'com.texttoimage.ai'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.texttoimage.ai'  // ✅ Naya package name
+        applicationId 'com.texttoimage.ai'
         minSdk 21
         targetSdk 34
-        versionCode 8                       // ✅ 8
-        versionName "12"                    // ✅ 12
+        versionCode 8
+        versionName "12"
     }
 
     buildTypes {
@@ -23,5 +23,6 @@ android {
 }
 
 dependencies {
+    // ✅ Simple dependency, kuch extra nahi
     implementation 'androidx.appcompat:appcompat:1.6.1'
 }
