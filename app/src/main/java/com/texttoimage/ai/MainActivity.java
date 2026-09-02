@@ -15,7 +15,7 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
 
     private WebView webView;
 
-    // ✅ Unity Ads IDs (Aap ki IDs)
+    // ✅ Unity Ads IDs
     private final String GAME_ID = "6184303";
     private final String INTERSTITIAL_PLACEMENT = "Interstitial_Android";
     private final String REWARDED_PLACEMENT = "Rewarded_Android";
@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ✅ Unity Ads Initialize
+        // ✅ Unity Ads Initialize (FIXED)
         UnityAds.initialize(this, GAME_ID, true);
 
         // WebView Setup
@@ -33,9 +33,9 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
         webView.setWebViewClient(new WebViewClient());
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
-        webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
+        webView.loadUrl("https://perchance.org/ai-text-to-image-gallery");
 
-        // ✅ WebView load hone ke baad Interstitial Ad Show Karein
+        // ✅ WebView load hone ke baad Interstitial Ad Show
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -54,40 +54,18 @@ public class MainActivity extends AppCompatActivity implements IUnityAdsListener
         }
     }
 
-    // ✅ Show Rewarded Ad (Optional - agar use karna ho toh)
-    private void showRewardedAd() {
-        if (UnityAds.isReady(REWARDED_PLACEMENT)) {
-            UnityAds.show(this, REWARDED_PLACEMENT);
-        } else {
-            Toast.makeText(this, "Rewarded Ad not ready", Toast.LENGTH_SHORT).show();
-        }
-    }
-
     // ✅ Unity Ads Listeners
     @Override
-    public void onUnityAdsReady(String placementId) {
-        // Ad ready hai
-    }
+    public void onUnityAdsReady(String placementId) {}
 
     @Override
-    public void onUnityAdsStart(String placementId) {
-        // Ad start hui
-    }
+    public void onUnityAdsStart(String placementId) {}
 
     @Override
     public void onUnityAdsFinish(String placementId, UnityAds.FinishState finishState) {
         if (placementId.equals(INTERSTITIAL_PLACEMENT)) {
             if (finishState == UnityAds.FinishState.COMPLETED) {
-                Toast.makeText(this, "Interstitial Ad Completed!", Toast.LENGTH_SHORT).show();
-            } else if (finishState == UnityAds.FinishState.SKIPPED) {
-                Toast.makeText(this, "Interstitial Ad Skipped", Toast.LENGTH_SHORT).show();
-            }
-        } else if (placementId.equals(REWARDED_PLACEMENT)) {
-            if (finishState == UnityAds.FinishState.COMPLETED) {
-                Toast.makeText(this, "Rewarded Ad Completed! 🎉", Toast.LENGTH_SHORT).show();
-                // ✅ Yahan user ko reward dein
-            } else {
-                Toast.makeText(this, "Rewarded Ad not completed", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Ad Completed!", Toast.LENGTH_SHORT).show();
             }
         }
     }
