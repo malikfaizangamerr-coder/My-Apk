@@ -11,7 +11,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // ✅ Unity Ads Maven Repository
+        // ✅ Unity Ads Maven Repository - Required for Unity Ads SDK
         maven {
             url "https://artifacts.unity.com/unity/maven/"
         }
