@@ -5,12 +5,18 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
+        // ✅ Unity Ads Repository (Yahan add karein)
+        maven {
+            url "https://artifacts.unity.com/unity/maven/"
+        }
     }
 }
+
 rootProject.name = "My-Apk"
 include ':app'
