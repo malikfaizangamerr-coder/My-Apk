@@ -11,9 +11,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // ✅ Unity Ads Maven Repository
+        // ✅ Start.io Repository (Sahi URL)
         maven {
-            url "https://artifacts.unity.com/unity/maven/"
+            url "https://maven.start.io/repository/maven/"
         }
     }
 }
