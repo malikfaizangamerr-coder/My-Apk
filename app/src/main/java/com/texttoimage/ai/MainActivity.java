@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.webkit.ByteArrayInputStream;
 import android.webkit.DownloadListener;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -27,6 +26,9 @@ import com.unity3d.ads.UnityAds.UnityAdsShowCompletionState;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+
+// ✅ Correct import for ByteArrayInputStream from java.io
+import java.io.ByteArrayInputStream;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -117,6 +119,7 @@ public class MainActivity extends AppCompatActivity {
                         byte[] data = fetchBlobData(url);
                         if (data != null) {
                             String mimeType = "image/png";
+                            // ✅ FIXED: Using java.io.ByteArrayInputStream (not android.webkit.ByteArrayInputStream)
                             return new WebResourceResponse(mimeType, "UTF-8", new ByteArrayInputStream(data));
                         }
                     } catch (Exception e) {
@@ -160,13 +163,13 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl(js);
     }
 
-    // ✅ Fetch blob data
+    // ✅ Fetch blob data using OkHttp
     private byte[] fetchBlobData(String blobUrl) {
         try {
             OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder().url(blobUrl).build();
             Response response = client.newCall(request).execute();
-            if (response.isSuccessful()) {
+            if (response.isSuccessful() && response.body() != null) {
                 return response.body().bytes();
             }
         } catch (Exception e) {
@@ -204,6 +207,7 @@ public class MainActivity extends AppCompatActivity {
                 showInterstitialAd();
             }
 
+            @Override
             public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 adLoaded = false;
                 Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
@@ -250,6 +254,7 @@ public class MainActivity extends AppCompatActivity {
                 showRewardedAd();
             }
 
+            @Override
             public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 Toast.makeText(MainActivity.this, "Rewarded Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
