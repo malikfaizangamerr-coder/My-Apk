@@ -1,44 +1,51 @@
 package com.texttoimage.ai;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.DownloadListener;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
-import com.unity3d.ads.IUnityAdsInitializationListener;
-import com.unity3d.ads.IUnityAdsLoadListener;
-import com.unity3d.ads.IUnityAdsShowListener;
-import com.unity3d.ads.UnityAds;
-import com.unity3d.ads.UnityAdsLoadOptions;
-import com.unity3d.ads.UnityAdsShowOptions;
-import com.unity3d.ads.UnityAds.UnityAdsShowCompletionState;
+import com.startio.sdk.StartIO;
+import com.startio.sdk.ads.banner.BannerView;
+import com.startio.sdk.ads.interstitial.InterstitialAd;
+import com.startio.sdk.ads.interstitial.InterstitialAdListener;
+import com.startio.sdk.ads.rewarded.RewardedAd;
+import com.startio.sdk.ads.rewarded.RewardedAdListener;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ImageDownloadHelper downloadHelper;
-    private boolean adLoaded = false;
+    private boolean interstitialAdLoaded = false;
+    private boolean rewardedAdLoaded = false;
+    private String currentImageUrl = "";
 
-    // ✅ Unity Ads IDs
-    private final String GAME_ID = "6184303";
-    private final String INTERSTITIAL_PLACEMENT = "Interstitial_Android"; // Verify this exact string
-    private final String REWARDED_PLACEMENT = "Rewarded_Android";
-    private final String BANNER_PLACEMENT = "Banner_Android";
+    // ✅ Start.io Ad IDs
+    private final String INTERSTITIAL_AD_ID = "210998353"; // Interstitial ad unit
+    private final String REWARDED_AD_ID = "210998354";    // Rewarded ad unit
+    private final String BANNER_AD_ID = "210998352";      // Banner ad unit
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,114 +63,98 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // ✅ Unity Ads v4+ Initialization (testMode = true for debugging)
-        UnityAds.initialize(this, GAME_ID, true, new IUnityAdsInitializationListener() {
-            @Override
-            public void onInitializationComplete() {
-                Toast.makeText(MainActivity.this, "Unity Ads Initialized (Test Mode)", Toast.LENGTH_SHORT).show();
-                loadInterstitialAd();
-            }
+        // ✅ Start.io SDK Initialize
+        StartIO.init(this);
 
-            @Override
-            public void onInitializationFailed(UnityAds.UnityAdsInitializationError error, String message) {
-                Toast.makeText(MainActivity.this, "Init Failed: " + message, Toast.LENGTH_LONG).show();
-            }
-        });
+        // ✅ Load Interstitial Ad
+        loadInterstitialAd();
 
+        // ✅ Show Interstitial after a short delay (app open)
+        new android.os.Handler().postDelayed(this::showInterstitialAd, 2000);
+
+        // ✅ Setup WebView
         setupWebView();
+
+        // ✅ Setup Banner Ad (Top)
+        setupBannerAd();
     }
 
+    // ✅ Setup Banner Ad
+    private void setupBannerAd() {
+        BannerView bannerView = new BannerView(this);
+        bannerView.setAdUnitId(BANNER_AD_ID);
+        bannerView.setBannerListener(new com.startio.sdk.ads.banner.BannerListener() {
+            @Override
+            public void onAdLoaded() {
+                // Banner loaded
+            }
+
+            @Override
+            public void onAdFailedToLoad(String error) {
+                Toast.makeText(MainActivity.this, "Banner failed: " + error, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdClicked() {}
+
+            @Override
+            public void onAdImpression() {}
+        });
+
+        LinearLayout bannerContainer = findViewById(R.id.bannerContainer);
+        if (bannerContainer != null) {
+            bannerContainer.addView(bannerView);
+            bannerView.loadAd();
+        }
+    }
+
+    // ✅ Setup WebView
     private void setupWebView() {
         webView = findViewById(R.id.webView);
 
-        // WebView Settings
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setLoadWithOverviewMode(true);
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setBuiltInZoomControls(true);
         webView.getSettings().setDisplayZoomControls(false);
-        webView.getSettings().setAllowFileAccess(true);
-        webView.getSettings().setAllowContentAccess(true);
 
-        // ✅ JavaScript Interface for Blob URL Download
         webView.addJavascriptInterface(new WebAppInterface(), "Android");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                if (!adLoaded) {
+                injectImageShareScript();
+                // Load interstitial after page load (if not shown already)
+                if (!interstitialAdLoaded) {
                     loadInterstitialAd();
                 }
-                // ✅ Inject JavaScript to intercept image long-press (robust)
-                injectImageDownloadScript();
             }
 
-            // ❌ No need to override shouldOverrideUrlLoading for blob: because we handle in DownloadListener
-            // ❌ shouldInterceptRequest does NOT work for blob: URLs, so we remove it.
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url);
+                // Hide webview while loading (optional)
+            }
         });
 
-        // ✅ Updated DownloadListener: handle blob: URLs
+        // ✅ Share instead of download (blob URLs)
         webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
-            if (url == null) {
-                Toast.makeText(MainActivity.this, "Invalid download URL", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if (url.startsWith("blob:")) {
-                downloadBlobImage(url);
-            } else if (url.startsWith("http")) {
-                String fileName = downloadHelper.generateFileName(url);
-                downloadHelper.downloadImageToGallery(url, fileName);
+            if (url != null && url.startsWith("blob:")) {
+                // ✅ Share blob image via JavaScript
+                shareBlobImage(url);
             } else {
-                Toast.makeText(MainActivity.this, "Download not supported for this URL type", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Share not supported", Toast.LENGTH_SHORT).show();
             }
         });
 
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
-    // ✅ Improved JavaScript injection with MutationObserver and document-level listener
-    private void injectImageDownloadScript() {
-        String js = "javascript:(function() {" +
-                "if (window._imageDownloadInjected) return; window._imageDownloadInjected = true;" +
-                "document.addEventListener('contextmenu', function(e) {" +
-                "    var target = e.target;" +
-                "    while (target && target.tagName !== 'IMG') {" +
-                "        target = target.parentNode;" +
-                "    }" +
-                "    if (target && target.tagName === 'IMG') {" +
-                "        e.preventDefault();" +
-                "        var src = target.src;" +
-                "        if (src.startsWith('blob:')) {" +
-                "            Android.downloadBlob(src);" +
-                "        } else {" +
-                "            Android.downloadImage(src, 'image_' + Date.now() + '.png');" +
-                "        }" +
-                "        return false;" +
-                "    }" +
-                "}, true);" +
-                "// Also handle dynamically added images" +
-                "var observer = new MutationObserver(function(mutations) {" +
-                "    mutations.forEach(function(mutation) {" +
-                "        mutation.addedNodes.forEach(function(node) {" +
-                "            if (node.tagName === 'IMG') {" +
-                "                // already covered by document listener" +
-                "            }" +
-                "        });" +
-                "    });" +
-                "});" +
-                "observer.observe(document.body, { childList: true, subtree: true });" +
-                "})()";
-        webView.loadUrl(js);
-    }
-
-    // ✅ Handle blob: URLs with improved fetch (using JavaScript to get base64)
-    private void downloadBlobImage(String blobUrl) {
-        Toast.makeText(this, "Downloading image...", Toast.LENGTH_SHORT).show();
-
-        // Use JavaScript to fetch blob and pass base64 to Android interface
+    // ✅ Share blob image via JavaScript
+    private void shareBlobImage(String blobUrl) {
+        Toast.makeText(this, "Preparing image...", Toast.LENGTH_SHORT).show();
         String js = "javascript:(function() {" +
                 "var xhr = new XMLHttpRequest();" +
                 "xhr.open('GET', '" + blobUrl + "', true);" +
@@ -173,133 +164,204 @@ public class MainActivity extends AppCompatActivity {
                 "        var reader = new FileReader();" +
                 "        reader.onloadend = function() {" +
                 "            var base64 = reader.result.split(',')[1];" +
-                "            Android.downloadBase64Image(base64, 'image_' + Date.now() + '.png');" +
+                "            Android.shareBase64Image(base64);" +
                 "        };" +
                 "        reader.readAsDataURL(this.response);" +
-                "    } else {" +
-                "        Android.showToast('Failed to fetch image');" +
                 "    }" +
-                "};" +
-                "xhr.onerror = function() {" +
-                "    Android.showToast('Network error');" +
                 "};" +
                 "xhr.send();" +
                 "})()";
         webView.loadUrl(js);
     }
 
-    // ✅ Unity Ads: Load Interstitial (only two methods)
-    private void loadInterstitialAd() {
-        UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
-        UnityAds.load(INTERSTITIAL_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
-            @Override
-            public void onUnityAdsAdLoaded(String placementId) {
-                adLoaded = true;
-                showInterstitialAd();
-            }
-
-            @Override
-            public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
-                adLoaded = false;
-                Toast.makeText(MainActivity.this, "Ad Failed to Load: " + message, Toast.LENGTH_SHORT).show();
-            }
-        });
+    // ✅ JavaScript for image share
+    private void injectImageShareScript() {
+        String js = "javascript:(function() {" +
+                "document.addEventListener('contextmenu', function(e) {" +
+                "    var target = e.target;" +
+                "    while (target && target.tagName !== 'IMG') {" +
+                "        target = target.parentNode;" +
+                "    }" +
+                "    if (target && target.tagName === 'IMG') {" +
+                "        e.preventDefault();" +
+                "        var src = target.src;" +
+                "        if (src.startsWith('blob:')) {" +
+                "            Android.shareBlob(src);" +
+                "        }" +
+                "        return false;" +
+                "    }" +
+                "}, true);" +
+                "})()";
+        webView.loadUrl(js);
     }
 
-    // ✅ Unity Ads: Show Interstitial
+    // ✅ Show Interstitial Ad
     private void showInterstitialAd() {
-        UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
-        UnityAds.show(MainActivity.this, INTERSTITIAL_PLACEMENT, showOptions, new IUnityAdsShowListener() {
+        if (interstitialAdLoaded) {
+            InterstitialAd.show(this);
+        }
+    }
+
+    // ✅ Show Rewarded Ad (called when user wants to share image)
+    private void showRewardedAdForShare(final String imageData) {
+        if (rewardedAdLoaded) {
+            // Show Rewarded Ad
+            RewardedAd.show(this, new RewardedAdListener() {
+                @Override
+                public void onAdRewarded() {
+                    // ✅ User watched full ad, now share image
+                    shareImageToWhatsApp(imageData);
+                }
+
+                @Override
+                public void onAdFailedToShow(String error) {
+                    Toast.makeText(MainActivity.this, "Ad failed, sharing anyway...", Toast.LENGTH_SHORT).show();
+                    shareImageToWhatsApp(imageData);
+                }
+
+                @Override
+                public void onAdClosed() {
+                    // Ad closed without reward
+                }
+            });
+        } else {
+            // If ad not loaded, share directly (or reload and try again)
+            Toast.makeText(this, "Ad not ready, sharing directly...", Toast.LENGTH_SHORT).show();
+            shareImageToWhatsApp(imageData);
+            loadRewardedAd();
+        }
+    }
+
+    // ✅ Share Image to WhatsApp via Intent
+    private void shareImageToWhatsApp(String base64Data) {
+        try {
+            byte[] imageBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+
+            if (bitmap == null) {
+                Toast.makeText(this, "Failed to decode image", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Save to cache file
+            File cacheDir = getCacheDir();
+            File imageFile = new File(cacheDir, "shared_image.png");
+            try (FileOutputStream fos = new FileOutputStream(imageFile)) {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            }
+
+            // Share intent
+            Uri imageUri = FileProvider.getUriForFile(this,
+                    getPackageName() + ".fileprovider", imageFile);
+
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("image/*");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            // Optional: Force WhatsApp
+            shareIntent.setPackage("com.whatsapp");
+
+            // If WhatsApp not installed, show chooser
+            if (shareIntent.resolveActivity(getPackageManager()) == null) {
+                Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show();
+                // Fallback to generic share
+                Intent chooser = Intent.createChooser(shareIntent, "Share Image");
+                startActivity(chooser);
+            } else {
+                startActivity(shareIntent);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Share failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ✅ Start.io: Load Interstitial
+    private void loadInterstitialAd() {
+        InterstitialAd.load(this, INTERSTITIAL_AD_ID, new InterstitialAdListener() {
             @Override
-            public void onUnityAdsShowFailure(String placementId, UnityAds.UnityAdsShowError error, String message) {
-                adLoaded = false;
-                Toast.makeText(MainActivity.this, "Ad Show Failed: " + message, Toast.LENGTH_SHORT).show();
+            public void onAdLoaded() {
+                interstitialAdLoaded = true;
             }
 
             @Override
-            public void onUnityAdsShowStart(String placementId) {}
+            public void onAdFailedToLoad(String error) {
+                interstitialAdLoaded = false;
+                Toast.makeText(MainActivity.this, "Interstitial failed: " + error, Toast.LENGTH_SHORT).show();
+            }
 
             @Override
-            public void onUnityAdsShowClick(String placementId) {}
+            public void onAdShown() {}
 
             @Override
-            public void onUnityAdsShowComplete(String placementId, UnityAdsShowCompletionState completionState) {
-                adLoaded = false;
+            public void onAdClicked() {}
+
+            @Override
+            public void onAdClosed() {
+                interstitialAdLoaded = false;
+                // Load next interstitial
                 loadInterstitialAd();
             }
         });
     }
 
-    // ✅ Unity Ads: Load Rewarded (optional)
+    // ✅ Start.io: Load Rewarded Ad
     private void loadRewardedAd() {
-        UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
-        UnityAds.load(REWARDED_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
+        RewardedAd.load(this, REWARDED_AD_ID, new RewardedAdListener() {
             @Override
-            public void onUnityAdsAdLoaded(String placementId) {
-                showRewardedAd();
+            public void onAdLoaded() {
+                rewardedAdLoaded = true;
             }
 
             @Override
-            public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
-                Toast.makeText(MainActivity.this, "Rewarded Failed to Load: " + message, Toast.LENGTH_SHORT).show();
+            public void onAdFailedToLoad(String error) {
+                rewardedAdLoaded = false;
+                Toast.makeText(MainActivity.this, "Rewarded failed: " + error, Toast.LENGTH_SHORT).show();
             }
+
+            @Override
+            public void onAdShown() {}
+
+            @Override
+            public void onAdClicked() {}
+
+            @Override
+            public void onAdClosed() {
+                rewardedAdLoaded = false;
+                loadRewardedAd();
+            }
+
+            @Override
+            public void onAdRewarded() {}
         });
     }
 
-    // ✅ Unity Ads: Show Rewarded (optional)
-    private void showRewardedAd() {
-        UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
-        UnityAds.show(MainActivity.this, REWARDED_PLACEMENT, showOptions, new IUnityAdsShowListener() {
-            @Override
-            public void onUnityAdsShowFailure(String placementId, UnityAds.UnityAdsShowError error, String message) {
-                Toast.makeText(MainActivity.this, "Rewarded Show Failed: " + message, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onUnityAdsShowStart(String placementId) {}
-
-            @Override
-            public void onUnityAdsShowClick(String placementId) {}
-
-            @Override
-            public void onUnityAdsShowComplete(String placementId, UnityAdsShowCompletionState completionState) {
-                Toast.makeText(MainActivity.this, "🎉 Reward Earned!", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    // ✅ JavaScript Interface - Added new method for base64 download
+    // ✅ WebAppInterface
     public class WebAppInterface {
         @android.webkit.JavascriptInterface
-        public void downloadImage(String imageUrl, String fileName) {
-            if (imageUrl != null && !imageUrl.isEmpty()) {
-                runOnUiThread(() -> {
-                    if (imageUrl.startsWith("http")) {
-                        downloadHelper.downloadImageToGallery(imageUrl, fileName);
-                    } else {
-                        Toast.makeText(MainActivity.this, "Unsupported URL type", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
+        public void shareBlob(String blobUrl) {
+            runOnUiThread(() -> shareBlobImage(blobUrl));
         }
 
         @android.webkit.JavascriptInterface
-        public void downloadBlob(String blobUrl) {
-            runOnUiThread(() -> downloadBlobImage(blobUrl));
-        }
-
-        // ✅ New method: receive base64 image data directly from JavaScript
-        @android.webkit.JavascriptInterface
-        public void downloadBase64Image(String base64Data, String fileName) {
-            if (base64Data != null && !base64Data.isEmpty()) {
-                try {
-                    byte[] imageBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
-                    downloadHelper.saveImageToGalleryDirect(imageBytes, fileName);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Base64 decode error", Toast.LENGTH_SHORT).show());
+        public void shareBase64Image(String base64Data) {
+            runOnUiThread(() -> {
+                currentImageUrl = base64Data;
+                // ✅ Show Rewarded Ad before sharing
+                if (rewardedAdLoaded) {
+                    showRewardedAdForShare(base64Data);
+                } else {
+                    // Load rewarded and show
+                    loadRewardedAd();
+                    Toast.makeText(MainActivity.this, "Loading ad, please wait...", Toast.LENGTH_SHORT).show();
+                    // Try again after 3 seconds
+                    new android.os.Handler().postDelayed(() -> {
+                        showRewardedAdForShare(base64Data);
+                    }, 3000);
                 }
-            }
+            });
         }
 
         @android.webkit.JavascriptInterface
