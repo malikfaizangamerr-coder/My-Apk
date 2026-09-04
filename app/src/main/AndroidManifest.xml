@@ -15,11 +15,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
 
-        <!-- ✅ Start.io App ID -->
-        <meta-data
-            android:name="START_APP_ID"
-            android:value="207685943" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -29,7 +24,7 @@
             </intent-filter>
         </activity>
 
-        <!-- ✅ FileProvider for sharing images to WhatsApp -->
+        <!-- FileProvider for WhatsApp sharing -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
