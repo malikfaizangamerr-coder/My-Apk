@@ -119,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
                         byte[] data = fetchBlobData(url);
                         if (data != null) {
                             String mimeType = "image/png";
-                            // ✅ FIXED: Using java.io.ByteArrayInputStream (not android.webkit.ByteArrayInputStream)
                             return new WebResourceResponse(mimeType, "UTF-8", new ByteArrayInputStream(data));
                         }
                     } catch (Exception e) {
@@ -197,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // ✅ Unity Ads: Load Interstitial
+    // ✅ Unity Ads: Load Interstitial (FIXED - removed onUnityAdsAdLoadFailed)
     private void loadInterstitialAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(INTERSTITIAL_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
@@ -205,12 +204,6 @@ public class MainActivity extends AppCompatActivity {
             public void onUnityAdsAdLoaded(String placementId) {
                 adLoaded = true;
                 showInterstitialAd();
-            }
-
-            @Override
-            public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
-                adLoaded = false;
-                Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -245,18 +238,13 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ Unity Ads: Load Rewarded
+    // ✅ Unity Ads: Load Rewarded (FIXED - removed onUnityAdsAdLoadFailed)
     private void loadRewardedAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(REWARDED_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
             @Override
             public void onUnityAdsAdLoaded(String placementId) {
                 showRewardedAd();
-            }
-
-            @Override
-            public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
-                Toast.makeText(MainActivity.this, "Rewarded Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
 
             @Override
