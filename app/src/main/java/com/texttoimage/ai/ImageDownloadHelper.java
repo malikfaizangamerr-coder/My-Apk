@@ -11,7 +11,6 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -71,6 +70,15 @@ public class ImageDownloadHelper {
 
         String base64Data = parts[1];
         byte[] imageData = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
+        saveImageToGallery(imageData, fileName);
+    }
+
+    // ✅ Direct save method (for blob/images from JavaScript)
+    public void saveImageToGalleryDirect(byte[] imageData, String fileName) {
+        if (imageData == null || imageData.length == 0) {
+            showToast("No image data to save");
+            return;
+        }
         saveImageToGallery(imageData, fileName);
     }
 
