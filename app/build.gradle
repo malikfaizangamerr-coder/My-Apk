@@ -2,17 +2,6 @@ plugins {
     id 'com.android.application'
 }
 
-repositories {
-    google()
-    mavenCentral()
-    maven {
-        url 'https://repo.maven.apache.org/maven2/'
-    }
-    maven {
-        url 'https://jitpack.io'
-    }
-}
-
 android {
     namespace 'com.texttoimage.ai'
     compileSdk 34
