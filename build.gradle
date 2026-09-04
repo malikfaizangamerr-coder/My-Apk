@@ -3,19 +3,6 @@ plugins {
     id 'com.android.application' version '8.1.0' apply false
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven {
-            url 'https://repo.maven.apache.org/maven2/'
-        }
-        maven {
-            url 'https://jitpack.io'
-        }
-    }
-}
-
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
