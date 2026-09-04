@@ -26,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageDownloadHelper downloadHelper;
     private boolean adLoaded = false;
 
-    // ✅ Unity Ads IDs (Aap ki IDs)
+    // ✅ Unity Ads IDs
     private final String GAME_ID = "6184303";
     private final String INTERSTITIAL_PLACEMENT = "Interstitial_Android";
     private final String REWARDED_PLACEMENT = "Rewarded_Android";
@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
-    // ✅ Unity Ads: Load Interstitial
+    // ✅ Unity Ads: Load Interstitial (FIXED)
     private void loadInterstitialAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(INTERSTITIAL_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
@@ -113,10 +113,17 @@ public class MainActivity extends AppCompatActivity {
                 adLoaded = false;
                 Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
+
+            // ✅ Required method for Unity Ads v4+
+            @Override
+            public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
+                adLoaded = false;
+                Toast.makeText(MainActivity.this, "Ad Failed to Load: " + message, Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
-    // ✅ Unity Ads: Show Interstitial
+    // ✅ Unity Ads: Show Interstitial (FIXED)
     private void showInterstitialAd() {
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
         UnityAds.show(MainActivity.this, INTERSTITIAL_PLACEMENT, showOptions, new IUnityAdsShowListener() {
@@ -132,15 +139,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onUnityAdsShowClick(String placementId) {}
 
+            // ✅ Fixed: No UnityAdsFinishState parameter
             @Override
-            public void onUnityAdsShowComplete(String placementId, UnityAds.UnityAdsFinishState state) {
+            public void onUnityAdsShowComplete(String placementId) {
                 adLoaded = false;
                 loadInterstitialAd();
             }
         });
     }
 
-    // ✅ Unity Ads: Load Rewarded (Optional)
+    // ✅ Unity Ads: Load Rewarded (FIXED)
     private void loadRewardedAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(REWARDED_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
@@ -153,10 +161,16 @@ public class MainActivity extends AppCompatActivity {
             public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 Toast.makeText(MainActivity.this, "Rewarded Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
+
+            // ✅ Required method for Unity Ads v4+
+            @Override
+            public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
+                Toast.makeText(MainActivity.this, "Rewarded Failed to Load: " + message, Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
-    // ✅ Unity Ads: Show Rewarded (Optional)
+    // ✅ Unity Ads: Show Rewarded (FIXED)
     private void showRewardedAd() {
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
         UnityAds.show(MainActivity.this, REWARDED_PLACEMENT, showOptions, new IUnityAdsShowListener() {
@@ -171,11 +185,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onUnityAdsShowClick(String placementId) {}
 
+            // ✅ Fixed: No UnityAdsFinishState parameter
             @Override
-            public void onUnityAdsShowComplete(String placementId, UnityAds.UnityAdsFinishState state) {
-                if (state == UnityAds.UnityAdsFinishState.COMPLETED) {
-                    Toast.makeText(MainActivity.this, "🎉 Reward Earned!", Toast.LENGTH_SHORT).show();
-                }
+            public void onUnityAdsShowComplete(String placementId) {
+                Toast.makeText(MainActivity.this, "🎉 Reward Earned!", Toast.LENGTH_SHORT).show();
             }
         });
     }
