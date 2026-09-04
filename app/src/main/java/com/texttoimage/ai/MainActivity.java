@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private CountDownTimer countDownTimer;
     private boolean isAdCompleted = false;
 
-    // ✅ Adsterra Direct Link (Your Link)
+    // ✅ Adsterra Direct Link
     private final String ADSTERRA_LINK = "https://www.profitableratecpmnetwork.com/qipfe6eqa?key=3742cf2fbc4cc31e29fe7df287ed757a";
 
     @Override
@@ -70,26 +70,70 @@ public class MainActivity extends AppCompatActivity {
         webView.getSettings().setBuiltInZoomControls(true);
         webView.getSettings().setDisplayZoomControls(false);
 
+        // ✅ JavaScript Interface
         webView.addJavascriptInterface(new WebAppInterface(), "Android");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                // ✅ Inject JavaScript to handle image long-press AND download
                 injectImageShareScript();
             }
-        });
 
-        // Handle long-press / download
-        webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
-            if (url != null && url.startsWith("blob:")) {
-                shareBlobImage(url);
-            } else {
-                Toast.makeText(MainActivity.this, "Share not supported", Toast.LENGTH_SHORT).show();
+            // ✅ Handle URL loading (for download links if any)
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url != null && url.startsWith("blob:")) {
+                    // ✅ Handle blob URL via JavaScript
+                    view.loadUrl("javascript:Android.shareBlob('" + url + "');");
+                    return true;
+                }
+                return false;
             }
         });
 
+        // ❌ REMOVE DownloadListener - it doesn't handle blob URLs reliably
+        // webView.setDownloadListener(...);
+
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
+    }
+
+    // ✅ Enhanced JavaScript to handle both long-press and download button
+    private void injectImageShareScript() {
+        String js = "javascript:(function() {" +
+                "// Handle long-press on images" +
+                "document.addEventListener('contextmenu', function(e) {" +
+                "    var target = e.target;" +
+                "    while (target && target.tagName !== 'IMG') {" +
+                "        target = target.parentNode;" +
+                "    }" +
+                "    if (target && target.tagName === 'IMG') {" +
+                "        e.preventDefault();" +
+                "        var src = target.src;" +
+                "        Android.shareBlob(src);" +
+                "        return false;" +
+                "    }" +
+                "}, true);" +
+                "" +
+                "// ✅ Handle download buttons/links that trigger downloads" +
+                "document.addEventListener('click', function(e) {" +
+                "    var target = e.target;" +
+                "    // Check if clicked element or its parent is a download link/button" +
+                "    while (target) {" +
+                "        if (target.tagName === 'A' && target.download) {" +
+                "            e.preventDefault();" +
+                "            var url = target.href;" +
+                "            if (url && url.startsWith('blob:')) {" +
+                "                Android.shareBlob(url);" +
+                "            }" +
+                "            return false;" +
+                "        }" +
+                "        target = target.parentNode;" +
+                "    }" +
+                "}, true);" +
+                "})()";
+        webView.loadUrl(js);
     }
 
     // ✅ Show Adsterra Ad Overlay with Timer
@@ -98,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
             adContainer.setVisibility(android.view.View.VISIBLE);
             webView.setVisibility(android.view.View.GONE);
 
-            timerText.setText("Wait 10 seconds");
+            timerText.setText("⏳ Wait 10 seconds");
             progressBar.setProgress(0);
             progressBar.setVisibility(android.view.View.VISIBLE);
             closeAdButton.setVisibility(android.view.View.GONE);
@@ -118,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onTick(long millisUntilFinished) {
                 int remaining = (int) (millisUntilFinished / 1000);
-                timerText.setText("Wait " + remaining + "s");
+                timerText.setText("⏳ Wait " + remaining + "s");
                 progressBar.setProgress((10 - remaining) * 10);
             }
 
@@ -128,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
                 progressBar.setProgress(100);
                 isAdCompleted = true;
                 closeAdButton.setVisibility(android.view.View.VISIBLE);
-                closeAdButton.setText("View Ad & Share Image");
+                closeAdButton.setText("👁️ View Ad & Share");
             }
         }.start();
     }
@@ -160,9 +204,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ✅ Share blob image from WebView
+    // ✅ Share blob image via JavaScript
     private void shareBlobImage(String blobUrl) {
-        Toast.makeText(this, "Preparing image...", Toast.LENGTH_SHORT).show();
+        if (blobUrl == null || blobUrl.isEmpty()) {
+            Toast.makeText(this, "Invalid image URL", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Toast.makeText(this, "📥 Preparing image...", Toast.LENGTH_SHORT).show();
+        
+        // ✅ JavaScript to fetch blob and send base64 to Android
         String js = "javascript:(function() {" +
                 "var xhr = new XMLHttpRequest();" +
                 "xhr.open('GET', '" + blobUrl + "', true);" +
@@ -175,30 +226,14 @@ public class MainActivity extends AppCompatActivity {
                 "            Android.shareBase64Image(base64);" +
                 "        };" +
                 "        reader.readAsDataURL(this.response);" +
+                "    } else {" +
+                "        Android.showToast('Failed to fetch image');" +
                 "    }" +
                 "};" +
+                "xhr.onerror = function() {" +
+                "    Android.showToast('Network error');" +
+                "};" +
                 "xhr.send();" +
-                "})()";
-        webView.loadUrl(js);
-    }
-
-    // ✅ JavaScript for long-press
-    private void injectImageShareScript() {
-        String js = "javascript:(function() {" +
-                "document.addEventListener('contextmenu', function(e) {" +
-                "    var target = e.target;" +
-                "    while (target && target.tagName !== 'IMG') {" +
-                "        target = target.parentNode;" +
-                "    }" +
-                "    if (target && target.tagName === 'IMG') {" +
-                "        e.preventDefault();" +
-                "        var src = target.src;" +
-                "        if (src.startsWith('blob:')) {" +
-                "            Android.shareBlob(src);" +
-                "        }" +
-                "        return false;" +
-                "    }" +
-                "}, true);" +
                 "})()";
         webView.loadUrl(js);
     }
