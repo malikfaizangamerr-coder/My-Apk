@@ -4,7 +4,10 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.ByteArrayInputStream;
 import android.webkit.DownloadListener;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
@@ -21,6 +24,10 @@ import com.unity3d.ads.UnityAdsLoadOptions;
 import com.unity3d.ads.UnityAdsShowOptions;
 import com.unity3d.ads.UnityAds.UnityAdsShowCompletionState;
 
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
@@ -31,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private final String GAME_ID = "6184303";
     private final String INTERSTITIAL_PLACEMENT = "Interstitial_Android";
     private final String REWARDED_PLACEMENT = "Rewarded_Android";
+    private final String BANNER_PLACEMENT = "Banner_Android";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setBuiltInZoomControls(true);
         webView.getSettings().setDisplayZoomControls(false);
+        webView.getSettings().setAllowFileAccess(true);
+        webView.getSettings().setAllowContentAccess(true);
 
         // ✅ JavaScript Interface for Blob URL Download
         webView.addJavascriptInterface(new WebAppInterface(), "Android");
@@ -86,9 +96,10 @@ public class MainActivity extends AppCompatActivity {
                 if (!adLoaded) {
                     loadInterstitialAd();
                 }
+                // ✅ Inject JavaScript to intercept image long-press
+                injectImageDownloadScript();
             }
 
-            // ✅ Intercept blob: URLs
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 if (url != null && url.startsWith("blob:")) {
@@ -97,9 +108,26 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return false;
             }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString();
+                if (url != null && url.startsWith("blob:")) {
+                    try {
+                        byte[] data = fetchBlobData(url);
+                        if (data != null) {
+                            String mimeType = "image/png";
+                            return new WebResourceResponse(mimeType, "UTF-8", new ByteArrayInputStream(data));
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
+            }
         });
 
-        // ✅ DownloadListener for HTTP downloads
+        // ✅ DownloadListener for normal HTTP downloads
         webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
             if (url != null && url.startsWith("http")) {
                 String fileName = downloadHelper.generateFileName(url);
@@ -112,27 +140,58 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
+    // ✅ Inject JavaScript to handle image long-press
+    private void injectImageDownloadScript() {
+        String js = "javascript:(function() {" +
+                "var images = document.getElementsByTagName('img');" +
+                "for (var i = 0; i < images.length; i++) {" +
+                "    images[i].addEventListener('contextmenu', function(e) {" +
+                "        e.preventDefault();" +
+                "        var src = this.src;" +
+                "        if (src.startsWith('blob:')) {" +
+                "            Android.downloadBlob(src);" +
+                "        } else {" +
+                "            Android.downloadImage(src, 'image_' + Date.now() + '.png');" +
+                "        }" +
+                "        return false;" +
+                "    });" +
+                "}" +
+                "})()";
+        webView.loadUrl(js);
+    }
+
+    // ✅ Fetch blob data
+    private byte[] fetchBlobData(String blobUrl) {
+        try {
+            OkHttpClient client = new OkHttpClient();
+            Request request = new Request.Builder().url(blobUrl).build();
+            Response response = client.newCall(request).execute();
+            if (response.isSuccessful()) {
+                return response.body().bytes();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     // ✅ Handle blob: URLs
     private void downloadBlobImage(String blobUrl) {
         Toast.makeText(this, "Downloading image...", Toast.LENGTH_SHORT).show();
-        // Inject JavaScript to fetch blob data
-        String js = "javascript:(function() {" +
-                "var xhr = new XMLHttpRequest();" +
-                "xhr.open('GET', '" + blobUrl + "', true);" +
-                "xhr.responseType = 'blob';" +
-                "xhr.onload = function(e) {" +
-                "    if (this.status == 200) {" +
-                "        var reader = new FileReader();" +
-                "        reader.onloadend = function() {" +
-                "            var base64 = reader.result.split(',')[1];" +
-                "            Android.downloadImage(base64, 'image_' + Date.now() + '.png');" +
-                "        };" +
-                "        reader.readAsDataURL(this.response);" +
-                "    }" +
-                "};" +
-                "xhr.send();" +
-                "})()";
-        webView.loadUrl(js);
+        new Thread(() -> {
+            try {
+                byte[] data = fetchBlobData(blobUrl);
+                if (data != null) {
+                    String fileName = "image_" + System.currentTimeMillis() + ".png";
+                    downloadHelper.saveImageToGalleryDirect(data, fileName);
+                } else {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Failed to download image", Toast.LENGTH_SHORT).show());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Download error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     // ✅ Unity Ads: Load Interstitial
@@ -145,7 +204,6 @@ public class MainActivity extends AppCompatActivity {
                 showInterstitialAd();
             }
 
-            // ✅ No @Override annotation (fix)
             public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 adLoaded = false;
                 Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
@@ -183,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ Unity Ads: Load Rewarded (Optional)
+    // ✅ Unity Ads: Load Rewarded
     private void loadRewardedAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(REWARDED_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
@@ -192,7 +250,6 @@ public class MainActivity extends AppCompatActivity {
                 showRewardedAd();
             }
 
-            // ✅ No @Override annotation (fix)
             public void onUnityAdsAdLoadFailed(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 Toast.makeText(MainActivity.this, "Rewarded Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
@@ -204,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ Unity Ads: Show Rewarded (Optional)
+    // ✅ Unity Ads: Show Rewarded
     private void showRewardedAd() {
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
         UnityAds.show(MainActivity.this, REWARDED_PLACEMENT, showOptions, new IUnityAdsShowListener() {
@@ -229,16 +286,21 @@ public class MainActivity extends AppCompatActivity {
     // ✅ JavaScript Interface for Blob URL Download
     public class WebAppInterface {
         @android.webkit.JavascriptInterface
-        public void downloadImage(String imageData, String fileName) {
-            if (imageData != null && !imageData.isEmpty()) {
-                try {
-                    byte[] imageBytes = android.util.Base64.decode(imageData, android.util.Base64.DEFAULT);
-                    downloadHelper.saveImageToGalleryDirect(imageBytes, fileName);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Download failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                }
+        public void downloadImage(String imageUrl, String fileName) {
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                runOnUiThread(() -> {
+                    if (imageUrl.startsWith("http")) {
+                        downloadHelper.downloadImageToGallery(imageUrl, fileName);
+                    } else {
+                        Toast.makeText(MainActivity.this, "Unsupported URL type", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
+        }
+
+        @android.webkit.JavascriptInterface
+        public void downloadBlob(String blobUrl) {
+            runOnUiThread(() -> downloadBlobImage(blobUrl));
         }
     }
 
