@@ -19,6 +19,7 @@ import com.unity3d.ads.IUnityAdsShowListener;
 import com.unity3d.ads.UnityAds;
 import com.unity3d.ads.UnityAdsLoadOptions;
 import com.unity3d.ads.UnityAdsShowOptions;
+import com.unity3d.ads.UnityAds.UnityAdsShowCompletionState; // ✅ IMPORTANT
 
 public class MainActivity extends AppCompatActivity {
 
@@ -98,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
-    // ✅ Unity Ads: Load Interstitial (FIXED)
+    // ✅ Unity Ads: Load Interstitial
     private void loadInterstitialAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(INTERSTITIAL_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
@@ -114,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Ad Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
 
-            // ✅ Required method for Unity Ads v4+
             @Override
             public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 adLoaded = false;
@@ -123,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ Unity Ads: Show Interstitial (FIXED)
+    // ✅ Unity Ads: Show Interstitial (FIXED - with completionState)
     private void showInterstitialAd() {
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
         UnityAds.show(MainActivity.this, INTERSTITIAL_PLACEMENT, showOptions, new IUnityAdsShowListener() {
@@ -139,16 +139,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onUnityAdsShowClick(String placementId) {}
 
-            // ✅ Fixed: No UnityAdsFinishState parameter
+            // ✅ FIXED: Two parameters - placementId and completionState
             @Override
-            public void onUnityAdsShowComplete(String placementId) {
+            public void onUnityAdsShowComplete(String placementId, UnityAdsShowCompletionState completionState) {
                 adLoaded = false;
                 loadInterstitialAd();
             }
         });
     }
 
-    // ✅ Unity Ads: Load Rewarded (FIXED)
+    // ✅ Unity Ads: Load Rewarded
     private void loadRewardedAd() {
         UnityAdsLoadOptions loadOptions = new UnityAdsLoadOptions();
         UnityAds.load(REWARDED_PLACEMENT, loadOptions, new IUnityAdsLoadListener() {
@@ -162,7 +162,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Rewarded Load Failed: " + message, Toast.LENGTH_SHORT).show();
             }
 
-            // ✅ Required method for Unity Ads v4+
             @Override
             public void onUnityAdsFailedToLoad(String placementId, UnityAds.UnityAdsLoadError error, String message) {
                 Toast.makeText(MainActivity.this, "Rewarded Failed to Load: " + message, Toast.LENGTH_SHORT).show();
@@ -170,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ Unity Ads: Show Rewarded (FIXED)
+    // ✅ Unity Ads: Show Rewarded (FIXED - with completionState)
     private void showRewardedAd() {
         UnityAdsShowOptions showOptions = new UnityAdsShowOptions();
         UnityAds.show(MainActivity.this, REWARDED_PLACEMENT, showOptions, new IUnityAdsShowListener() {
@@ -185,9 +184,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onUnityAdsShowClick(String placementId) {}
 
-            // ✅ Fixed: No UnityAdsFinishState parameter
+            // ✅ FIXED: Two parameters - placementId and completionState
             @Override
-            public void onUnityAdsShowComplete(String placementId) {
+            public void onUnityAdsShowComplete(String placementId, UnityAdsShowCompletionState completionState) {
                 Toast.makeText(MainActivity.this, "🎉 Reward Earned!", Toast.LENGTH_SHORT).show();
             }
         });
