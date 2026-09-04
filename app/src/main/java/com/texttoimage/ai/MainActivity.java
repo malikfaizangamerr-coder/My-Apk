@@ -8,51 +8,47 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
-import android.webkit.DownloadListener;
+import android.os.CountDownTimer;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import com.startio.sdk.StartIO;
-import com.startio.sdk.ads.banner.BannerView;
-import com.startio.sdk.ads.interstitial.InterstitialAd;
-import com.startio.sdk.ads.interstitial.InterstitialAdListener;
-import com.startio.sdk.ads.rewarded.RewardedAd;
-import com.startio.sdk.ads.rewarded.RewardedAdListener;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
-    private ImageDownloadHelper downloadHelper;
-    private boolean interstitialAdLoaded = false;
-    private boolean rewardedAdLoaded = false;
-    private String currentImageUrl = "";
+    private LinearLayout adContainer;
+    private ProgressBar progressBar;
+    private TextView timerText;
+    private Button closeAdButton;
+    private String currentImageData = "";
+    private CountDownTimer countDownTimer;
+    private boolean isAdCompleted = false;
 
-    // ✅ Start.io Ad IDs
-    private final String INTERSTITIAL_AD_ID = "210998353"; // Interstitial ad unit
-    private final String REWARDED_AD_ID = "210998354";    // Rewarded ad unit
-    private final String BANNER_AD_ID = "210998352";      // Banner ad unit
+    // ✅ Adsterra Direct Link (Your Link)
+    private final String ADSTERRA_LINK = "https://www.profitableratecpmnetwork.com/qipfe6eqa?key=3742cf2fbc4cc31e29fe7df287ed757a";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        downloadHelper = new ImageDownloadHelper(this);
+        // Views
+        webView = findViewById(R.id.webView);
+        adContainer = findViewById(R.id.adContainer);
+        progressBar = findViewById(R.id.progressBar);
+        timerText = findViewById(R.id.timerText);
+        closeAdButton = findViewById(R.id.closeAdButton);
 
         // Storage permission for Android 9 and below
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -63,55 +59,10 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // ✅ Start.io SDK Initialize
-        StartIO.init(this);
-
-        // ✅ Load Interstitial Ad
-        loadInterstitialAd();
-
-        // ✅ Show Interstitial after a short delay (app open)
-        new android.os.Handler().postDelayed(this::showInterstitialAd, 2000);
-
-        // ✅ Setup WebView
         setupWebView();
-
-        // ✅ Setup Banner Ad (Top)
-        setupBannerAd();
     }
 
-    // ✅ Setup Banner Ad
-    private void setupBannerAd() {
-        BannerView bannerView = new BannerView(this);
-        bannerView.setAdUnitId(BANNER_AD_ID);
-        bannerView.setBannerListener(new com.startio.sdk.ads.banner.BannerListener() {
-            @Override
-            public void onAdLoaded() {
-                // Banner loaded
-            }
-
-            @Override
-            public void onAdFailedToLoad(String error) {
-                Toast.makeText(MainActivity.this, "Banner failed: " + error, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdClicked() {}
-
-            @Override
-            public void onAdImpression() {}
-        });
-
-        LinearLayout bannerContainer = findViewById(R.id.bannerContainer);
-        if (bannerContainer != null) {
-            bannerContainer.addView(bannerView);
-            bannerView.loadAd();
-        }
-    }
-
-    // ✅ Setup WebView
     private void setupWebView() {
-        webView = findViewById(R.id.webView);
-
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setLoadWithOverviewMode(true);
@@ -126,23 +77,12 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 injectImageShareScript();
-                // Load interstitial after page load (if not shown already)
-                if (!interstitialAdLoaded) {
-                    loadInterstitialAd();
-                }
-            }
-
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                super.onPageStarted(view, url);
-                // Hide webview while loading (optional)
             }
         });
 
-        // ✅ Share instead of download (blob URLs)
+        // Handle long-press / download
         webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
             if (url != null && url.startsWith("blob:")) {
-                // ✅ Share blob image via JavaScript
                 shareBlobImage(url);
             } else {
                 Toast.makeText(MainActivity.this, "Share not supported", Toast.LENGTH_SHORT).show();
@@ -152,7 +92,75 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://perchance.org/ai-text-to-image-generator");
     }
 
-    // ✅ Share blob image via JavaScript
+    // ✅ Show Adsterra Ad Overlay with Timer
+    private void showAdsterraAd() {
+        runOnUiThread(() -> {
+            adContainer.setVisibility(android.view.View.VISIBLE);
+            webView.setVisibility(android.view.View.GONE);
+
+            timerText.setText("Wait 10 seconds");
+            progressBar.setProgress(0);
+            progressBar.setVisibility(android.view.View.VISIBLE);
+            closeAdButton.setVisibility(android.view.View.GONE);
+            isAdCompleted = false;
+
+            startTimer(10);
+        });
+    }
+
+    // ✅ Timer Logic
+    private void startTimer(int seconds) {
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
+
+        countDownTimer = new CountDownTimer(seconds * 1000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                int remaining = (int) (millisUntilFinished / 1000);
+                timerText.setText("Wait " + remaining + "s");
+                progressBar.setProgress((10 - remaining) * 10);
+            }
+
+            @Override
+            public void onFinish() {
+                timerText.setText("✅ Tap to view ad");
+                progressBar.setProgress(100);
+                isAdCompleted = true;
+                closeAdButton.setVisibility(android.view.View.VISIBLE);
+                closeAdButton.setText("View Ad & Share Image");
+            }
+        }.start();
+    }
+
+    // ✅ Open Adsterra Link in Browser & Share Image
+    public void openAdAndShare(android.view.View view) {
+        if (!isAdCompleted) {
+            Toast.makeText(this, "Please wait for timer", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Cancel timer
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
+
+        // ✅ Open Adsterra link in external browser (Policy Compliant)
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(ADSTERRA_LINK));
+        startActivity(browserIntent);
+
+        // Close ad overlay and share image after returning
+        adContainer.setVisibility(android.view.View.GONE);
+        webView.setVisibility(android.view.View.VISIBLE);
+
+        if (!currentImageData.isEmpty()) {
+            shareImageToWhatsApp(currentImageData);
+        } else {
+            Toast.makeText(this, "No image to share", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ✅ Share blob image from WebView
     private void shareBlobImage(String blobUrl) {
         Toast.makeText(this, "Preparing image...", Toast.LENGTH_SHORT).show();
         String js = "javascript:(function() {" +
@@ -174,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl(js);
     }
 
-    // ✅ JavaScript for image share
+    // ✅ JavaScript for long-press
     private void injectImageShareScript() {
         String js = "javascript:(function() {" +
                 "document.addEventListener('contextmenu', function(e) {" +
@@ -195,44 +203,7 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl(js);
     }
 
-    // ✅ Show Interstitial Ad
-    private void showInterstitialAd() {
-        if (interstitialAdLoaded) {
-            InterstitialAd.show(this);
-        }
-    }
-
-    // ✅ Show Rewarded Ad (called when user wants to share image)
-    private void showRewardedAdForShare(final String imageData) {
-        if (rewardedAdLoaded) {
-            // Show Rewarded Ad
-            RewardedAd.show(this, new RewardedAdListener() {
-                @Override
-                public void onAdRewarded() {
-                    // ✅ User watched full ad, now share image
-                    shareImageToWhatsApp(imageData);
-                }
-
-                @Override
-                public void onAdFailedToShow(String error) {
-                    Toast.makeText(MainActivity.this, "Ad failed, sharing anyway...", Toast.LENGTH_SHORT).show();
-                    shareImageToWhatsApp(imageData);
-                }
-
-                @Override
-                public void onAdClosed() {
-                    // Ad closed without reward
-                }
-            });
-        } else {
-            // If ad not loaded, share directly (or reload and try again)
-            Toast.makeText(this, "Ad not ready, sharing directly...", Toast.LENGTH_SHORT).show();
-            shareImageToWhatsApp(imageData);
-            loadRewardedAd();
-        }
-    }
-
-    // ✅ Share Image to WhatsApp via Intent
+    // ✅ Share Image to WhatsApp
     private void shareImageToWhatsApp(String base64Data) {
         try {
             byte[] imageBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
@@ -243,14 +214,12 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // Save to cache file
             File cacheDir = getCacheDir();
             File imageFile = new File(cacheDir, "shared_image.png");
             try (FileOutputStream fos = new FileOutputStream(imageFile)) {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
             }
 
-            // Share intent
             Uri imageUri = FileProvider.getUriForFile(this,
                     getPackageName() + ".fileprovider", imageFile);
 
@@ -259,13 +228,10 @@ public class MainActivity extends AppCompatActivity {
             shareIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
             shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            // Optional: Force WhatsApp
             shareIntent.setPackage("com.whatsapp");
 
-            // If WhatsApp not installed, show chooser
             if (shareIntent.resolveActivity(getPackageManager()) == null) {
                 Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show();
-                // Fallback to generic share
                 Intent chooser = Intent.createChooser(shareIntent, "Share Image");
                 startActivity(chooser);
             } else {
@@ -278,67 +244,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ✅ Start.io: Load Interstitial
-    private void loadInterstitialAd() {
-        InterstitialAd.load(this, INTERSTITIAL_AD_ID, new InterstitialAdListener() {
-            @Override
-            public void onAdLoaded() {
-                interstitialAdLoaded = true;
-            }
-
-            @Override
-            public void onAdFailedToLoad(String error) {
-                interstitialAdLoaded = false;
-                Toast.makeText(MainActivity.this, "Interstitial failed: " + error, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdShown() {}
-
-            @Override
-            public void onAdClicked() {}
-
-            @Override
-            public void onAdClosed() {
-                interstitialAdLoaded = false;
-                // Load next interstitial
-                loadInterstitialAd();
-            }
-        });
-    }
-
-    // ✅ Start.io: Load Rewarded Ad
-    private void loadRewardedAd() {
-        RewardedAd.load(this, REWARDED_AD_ID, new RewardedAdListener() {
-            @Override
-            public void onAdLoaded() {
-                rewardedAdLoaded = true;
-            }
-
-            @Override
-            public void onAdFailedToLoad(String error) {
-                rewardedAdLoaded = false;
-                Toast.makeText(MainActivity.this, "Rewarded failed: " + error, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdShown() {}
-
-            @Override
-            public void onAdClicked() {}
-
-            @Override
-            public void onAdClosed() {
-                rewardedAdLoaded = false;
-                loadRewardedAd();
-            }
-
-            @Override
-            public void onAdRewarded() {}
-        });
-    }
-
-    // ✅ WebAppInterface
+    // ✅ WebAppInterface for JavaScript
     public class WebAppInterface {
         @android.webkit.JavascriptInterface
         public void shareBlob(String blobUrl) {
@@ -348,19 +254,9 @@ public class MainActivity extends AppCompatActivity {
         @android.webkit.JavascriptInterface
         public void shareBase64Image(String base64Data) {
             runOnUiThread(() -> {
-                currentImageUrl = base64Data;
-                // ✅ Show Rewarded Ad before sharing
-                if (rewardedAdLoaded) {
-                    showRewardedAdForShare(base64Data);
-                } else {
-                    // Load rewarded and show
-                    loadRewardedAd();
-                    Toast.makeText(MainActivity.this, "Loading ad, please wait...", Toast.LENGTH_SHORT).show();
-                    // Try again after 3 seconds
-                    new android.os.Handler().postDelayed(() -> {
-                        showRewardedAdForShare(base64Data);
-                    }, 3000);
-                }
+                currentImageData = base64Data;
+                // ✅ Show Adsterra Ad before sharing
+                showAdsterraAd();
             });
         }
 
@@ -372,6 +268,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (adContainer.getVisibility() == android.view.View.VISIBLE) {
+            Toast.makeText(this, "Please complete the ad", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
@@ -383,6 +283,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         if (webView != null) {
             webView.destroy();
+        }
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
         }
         super.onDestroy();
     }
